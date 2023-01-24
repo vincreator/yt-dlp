@@ -49,11 +49,12 @@ class BravoTVIE(AdobePassIE):
             'mbr': 'true',
         }
         account_pid, release_pid = [None] * 2
-        tve = settings.get('ls_tve')
-        if tve:
+        if tve := settings.get('ls_tve'):
             query['manifest'] = 'm3u'
-            mobj = re.search(r'<[^>]+id="pdk-player"[^>]+data-url=["\']?(?:https?:)?//player\.theplatform\.com/p/([^/]+)/(?:[^/]+/)*select/([^?#&"\']+)', webpage)
-            if mobj:
+            if mobj := re.search(
+                r'<[^>]+id="pdk-player"[^>]+data-url=["\']?(?:https?:)?//player\.theplatform\.com/p/([^/]+)/(?:[^/]+/)*select/([^?#&"\']+)',
+                webpage,
+            ):
                 account_pid, tp_path = mobj.groups()
                 release_pid = tp_path.strip('/').split('/')[-1]
             else:
@@ -76,42 +77,53 @@ class BravoTVIE(AdobePassIE):
             tp_path = release_pid = metadata.get('release_pid')
             if not release_pid:
                 release_pid = metadata['guid']
-                tp_path = 'media/guid/2140479951/' + release_pid
-            info.update({
+                tp_path = f'media/guid/2140479951/{release_pid}'
+            info |= {
                 'title': metadata['title'],
                 'description': metadata.get('description'),
                 'season_number': int_or_none(metadata.get('season_num')),
                 'episode_number': int_or_none(metadata.get('episode_num')),
-            })
+            }
             query['switch'] = 'progressive'
 
-        tp_url = 'http://link.theplatform.com/s/%s/%s' % (account_pid, tp_path)
+        tp_url = f'http://link.theplatform.com/s/{account_pid}/{tp_path}'
 
-        tp_metadata = self._download_json(
+        if tp_metadata := self._download_json(
             update_url_query(tp_url, {'format': 'preview'}),
-            display_id, fatal=False)
-        if tp_metadata:
-            info.update({
+            display_id,
+            fatal=False,
+        ):
+            info |= {
                 'title': tp_metadata.get('title'),
                 'description': tp_metadata.get('description'),
                 'duration': float_or_none(tp_metadata.get('duration'), 1000),
                 'season_number': int_or_none(
-                    dict_get(tp_metadata, ('pl1$seasonNumber', 'nbcu$seasonNumber'))),
+                    dict_get(
+                        tp_metadata, ('pl1$seasonNumber', 'nbcu$seasonNumber')
+                    )
+                ),
                 'episode_number': int_or_none(
-                    dict_get(tp_metadata, ('pl1$episodeNumber', 'nbcu$episodeNumber'))),
+                    dict_get(
+                        tp_metadata, ('pl1$episodeNumber', 'nbcu$episodeNumber')
+                    )
+                ),
                 # For some reason the series is sometimes wrapped into a single element array.
                 'series': try_get(
                     dict_get(tp_metadata, ('pl1$show', 'nbcu$show')),
                     lambda x: x[0] if isinstance(x, list) else x,
-                    expected_type=str),
+                    expected_type=str,
+                ),
                 'episode': dict_get(
-                    tp_metadata, ('pl1$episodeName', 'nbcu$episodeName', 'title')),
-            })
+                    tp_metadata, ('pl1$episodeName', 'nbcu$episodeName', 'title')
+                ),
+            }
 
-        info.update({
+        info |= {
             '_type': 'url_transparent',
             'id': release_pid,
-            'url': smuggle_url(update_url_query(tp_url, query), {'force_smil_url': True}),
+            'url': smuggle_url(
+                update_url_query(tp_url, query), {'force_smil_url': True}
+            ),
             'ie_key': 'ThePlatform',
-        })
+        }
         return info
