@@ -96,13 +96,10 @@ def parseOpts(overrideArguments=None, ignore_config_files='if_override'):
         except ValueError as err:
             raise root.parser.error(err)
 
-        if loaded_all_configs:
-            # If ignoreconfig is found inside the system configuration file,
-            # the user configuration is removed
-            if root.parse_known_args()[0].ignoreconfig:
-                user_conf = next((i for i, conf in enumerate(root.configs) if conf.label == 'User'), None)
-                if user_conf is not None:
-                    root.configs.pop(user_conf)
+        if loaded_all_configs and root.parse_known_args()[0].ignoreconfig:
+            user_conf = next((i for i, conf in enumerate(root.configs) if conf.label == 'User'), None)
+            if user_conf is not None:
+                root.configs.pop(user_conf)
 
         try:
             root.configs[0].load_configs()  # Resolve any aliases using --config-location
